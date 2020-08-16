@@ -1,0 +1,193 @@
+---
+title: "Lab 2, 732A98 Visualization"
+author: "Jochen Schaefer, Jiawei Wu"
+date: "2018/9/20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r library, message=FALSE, warning=FALSE}
+###Library
+library(ggplot2)
+library(readxl)
+library(MASS)
+library(plotly)
+library(gridExtra)
+```
+
+## Assignment 1
+
+```{r readdata}
+# Reading the Data
+olive <- read.csv("olive.csv", stringsAsFactors = FALSE)
+
+# Drop redundant first column
+olive <- olive[,-1]
+```
+
+### Task 1.1
+
+```{r 1.1}
+plot.1 <- ggplot(data = olive, aes(x=palmitic, y=oleic, col=linolenic)) + geom_point()
+plot.1
+
+plot.2 <- ggplot(data=olive, aes(x=palmitic, y=oleic, col=cut_interval(linolenic, 4, labels=c("Bin 1", "Bin 2", "Bin 3", "Bin 4")))) + geom_point()
+plot.2 <- plot.2 + labs(col="Linolenic")
+plot.2
+```
+
+It is much easier to interpret the second plot, since the colors used there are much more distinct. While plot 1 is a more accurate representation of the data, the continuous color-scale makes it harder to distinguish between values. Being a preattentive feature, the human perception system can process hue easier and faster than the variation of value used in plot 1.
+
+### Task 1.2
+
+```{r 1.2, warning=FALSE}
+# a
+plot.2 <- ggplot(data=olive, aes(x=palmitic, y=oleic, col=cut_interval(linolenic, 4, labels=c("Bin 1", "Bin 2", "Bin 3", "Bin 4")))) + geom_point()
+plot.2 <- plot.2 + labs(col="Linolenic")
+plot.2
+
+# b
+plot.3 <- ggplot(data=olive, aes(x=palmitic, y=oleic, size=cut_interval(linolenic, 4, labels=c("Bin 1", "Bin 2", "Bin 3", "Bin 4")))) + geom_point()
+plot.3 <- plot.3 + labs(size="Oleic")
+plot.3
+
+# c
+plot.4 <- ggplot(data=olive) +geom_point(aes(x=palmitic, y=oleic))+ geom_spoke(aes(x=palmitic, y=oleic,radius=50, angle=as.numeric(cut_interval(linolenic, 4, labels=c("Bin 1", "Bin 2", "Bin 3", "Bin 4")))))
+plot.4
+```
+
+Plot b, depicting discretized Oleic by size, is the hardest to interpret. Not only because of the massive overplotting, but also because the different size of the dots are hard to distinguish. While still hard to read, plot c (orientation angle) shows the categories a bit more clearly. Nevertheless, plot a using hue to encode the categories is easiest to interpret. This is congruent with the perception metrics: Hue has the highest channel capacity (10 levels/3.1 bits), followed by line orientation (3 bits) and finally size (2.2 bits). Having 4 levels of Oleic, the channel capacity of size is utilized almost completely.
+
+### Task 1.3
+
+```{r 1.3.1 , warning=FALSE}
+# Region as numeric
+plot.5 <- ggplot(data=olive) + geom_point(aes(x=oleic, y=eicosenoic, col=Region))
+plot.5
+```
+
+Displaying the numeric values of region in a continuous color scale is misleading, becuase such a scale implies at least interval-scaled data. The values of Region however are a nominal scale, which should be represented in a discrete style.
+
+```{r 1.3.2, warning=FALSE}
+# Region discrete
+plot.6 <- ggplot(data=olive) + geom_point(aes(x=oleic, y=eicosenoic, col=as.factor(Region))) + labs(col="Region")
+plot.6
+```
+
+The identification of decision boundaries in this plot happens rather quickly (probably <1 sec.). This is due to the preattentive perception of the boundaries: Hue is a preattentive feature and borders between groups of elements sharing the same visual feature are detected preattentively.
+
+### Task 1.4
+
+```{r 1.4, warning=FALSE}
+olive$palmitic.disc <- cut_interval(olive$palmitic, 3, labels=c("Bin 1", "Bin 2", "Bin 3"))
+olive$palmitoleic.disc <- cut_interval(olive$palmitoleic, 3, labels=c("Bin 1", "Bin 2", "Bin 3"))
+olive$linoleic.disc <- cut_interval(olive$linoleic, 3, labels=c("Bin 1", "Bin 2", "Bin 3"))
+
+plot.7 <- ggplot(data=olive) + geom_point(aes(x=oleic, y=eicosenoic,col=linoleic.disc, shape=palmitic.disc, size=palmitoleic.disc))
+plot.7 <- plot.7 + labs(shape="palmitic", size="palmitoleic")
+plot.7
+```
+
+Differentiating between all possible combinations of attributes is very hard. Only the hue appears to be detected preattentively. This illustrated the fact, that, when combined, the individual channel capacities do not sum up. We would need log2(27) = 4.75 bits to encode all present levels. While we do not know the channel capacity of the shape, the combination hue and size could theoretically  encode more than enough information. Still, the graph is hardly readable which illustrates that  problem.
+
+### Task 1.5
+
+```{r 1.5, warning=FALSE}
+plot.8 <- ggplot(data=olive) + geom_point(aes(x=oleic, y=eicosenoic, shape=palmitic.disc, size=palmitoleic.disc, col=as.factor(Region)))
+plot.8
+```
+
+
+According to Treisman's theory, figures are processed in parallel by checking the individual feature maps. The feature map for Region is using hue, which means that it can be processed preattentively. Because of that, a clear decision boundary is present for region. Combining hue with other attributes would require comparisons and searches involving multiple maps, which is slower. Therefore, decision boundaries displayed by multiple aesthetics are visible less clearly.
+
+### Task 1.6
+
+```{r 1.6, warning=FALSE}
+plot.9 <- olive %>% group_by(Area) %>% summarise(n=n(), name=first(Area)) %>% plot_ly(values=~n, hoverinfo="text", text=~paste(name,"<br>",n),textinfo=~"none", showlegend=FALSE ,type= "pie")
+plot.9
+```
+
+This plot shows, that the erros made when interpreting angles are relatively high. Therefore, it can be hard to compare the size of individual segments, e.g. in the case of North-Apulia and Coast-Sardinia. It is also hardly possible to read the exact percentage of the individual shares from a graph like that.
+
+### Task 1.7
+
+```{r 1.7, warning=FALSE}
+# Task 1.7
+plot.10 <- ggplot(data=olive) + geom_density2d(aes(x=linoleic, y=eicosenoic))
+plot.10
+
+# Comparing to Scatterplot
+plot.11 <- ggplot(data=olive) + geom_point(aes(x=linoleic, y=eicosenoic))
+plot.11
+```
+
+When looking at the scatterplot, it is quite obvious that a negative correlation between eicosenoic and linoleic for obeservations in which the valus of eicosenoic is significantly greater than zero. This also becomes apparent in a decision boundary between a cloud of scattered points on the one hand and more or less horizontal line of points on the other. In the density countour plot, this decision-boundary  vanishes and it is much harder to see that there is indeed a correlation between those two variables, even though it is only present for one group of observations.
+
+## Assignment 2
+
+### Task 2.1
+
+```{r 2.1}
+# Read Data
+baseball <- read_xlsx("baseball-2016.xlsx")
+baseball
+```
+
+Scaling of the data appears to be reasonable, as a short investigation of the data reveals, that the individual variables differ drastically in terms of their value range: While e.g. "BAvg" ranges between 0.2 and 0.3, the values of "GDP" are in the hundreds and those of "AB" and "Hits" even in the thousands. Since we are going to use the Minkowski-Distance of power 2 lateron, which is basically the Euclidian Distance, we should normalize the data, as such distance measures are sensitive to scaling.
+
+### Task 2.2
+
+```{r 2.2, warning=FALSE,message=FALSE}
+numeric <- sapply(baseball, is.numeric, simplify=T)
+data <- baseball[,numeric]
+data <- scale(data)
+distances <- dist(data, method="minkowski", p=2)
+result <- isoMDS(distances, k=2)
+result.df <- as.data.frame(result)
+
+baseball <- cbind(baseball, result.df)
+
+plot_ly(data=baseball, x= ~points.1, y= ~points.2, hovertext= ~Team , color= ~League, colors=c("red","blue"),type="scatter")
+```
+
+While there is no clear decision boundary, a rectangle can be drawn, that separates AL and NL teams relatively well. Also, the y-axis seems to provide the best differentiation between the leagues: AL and NL spread across the the whole x-axis, while AL-teams tend to have positive y-values. The only apparent outlier are the Boston Red Sox, which have a significantly lower x-value than all other AL teams.
+
+### Task 2.3
+
+```{r 2.3, warning=FALSE,message=FALSE}
+sh <- Shepard(distances, result$points)
+delta <- as.numeric(distances)
+D <- as.numeric(dist(result$points, method="minkowski", p=2))
+
+
+n=nrow(result$points)
+index=matrix(1:n, nrow=n, ncol=n)
+index1=as.numeric(index[lower.tri(index)])
+
+n=nrow(result$points)
+index=matrix(1:n, nrow=n, ncol=n, byrow = T)
+index2=as.numeric(index[lower.tri(index)])
+
+
+
+plot_ly()%>%
+  add_markers(x=~delta, y=~D, hoverinfo = 'text',
+              text = ~paste('Obj1: ', baseball$Team[index1],
+                            '<br> Obj 2: ', baseball$Team[index2]))%>%add_lines(x=~sh$x, y=~sh$yf)
+```
+
+Since the Shepard diagram plots the distances in the data agains the distances calculated by MDS, in a perfect Shepard plot all points would be on the diagonal of the graph. The further away individual observations are from that diagonal, the harder they were for the MDS to map.  In case of our analysis, two teams seem to be particularly hard to map: The Minnesota Twind and the Milwaukee Brewers. The words results for mapping in general were produced for the pairs Minnesota Twins vs. Arizona Diamondbacks and Oakland Athletics vs. Milwaukee Brewers
+
+### Task 2.4
+
+```{r 2.4,message=FALSE, warning=FALSE}
+tmpplot <- lapply(which(numeric), function(i) ggplot(data=baseball) + geom_point(aes(x=points.2, y=baseball[,i])) + labs(x="y-Component",y=colnames(baseball)[i]))
+a <- grid.arrange(grobs=tmpplot)
+a
+```
+
+The strongest prositive connection between the chosen MDS-Component and a numeric variable can be found for the number of Home-Runs per Game and the Home-Runs in total. The number of Home-Runs is very important when ranking baseball teams, since a homerun is the ultimate goal of baseball and result in a point being awarded. Because of that, the number of Hume-Runs is often used to evaluate the performance of pitchers. A variable with a pretty clear negative connection would be IBB, the intentional Base on balls. According to MLB's website, a IBB usually occurs, when a excellent hitter at plate faces a significantly worse hitter on deck. That means, that the better the hitters in a team are overall, the less often an IBB should occur. Thus, the MDS variable could be interpreted as a representation of the hitting-performance of the players.
+
